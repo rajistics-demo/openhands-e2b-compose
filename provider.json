@@ -5,8 +5,8 @@
   "native_enterprise": "implemented",
   "resume_semantics": "same-process",
   "evidence": {
-    "api": "Existing managed adapter; November 21 provider smoke verified same-process resume and sandbox retirement.",
-    "canvas": "Earlier pilot verified same process and browser preview. Current shared Pause-button qualification pending.",
-    "expiry": "Replacement workspace recovery pending."
+    "api": "Current package passed Compose render and template SDK construction. Earlier live pilot verified same-process resume and retirement.",
+    "canvas": "Earlier pilot verified Pause and same-process browser preview recovery with a provider-aware Canvas build. A fresh install from this repo is untested.",
+    "expiry": "Replacement workspace recovery is untested."
   }
 }

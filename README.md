@@ -12,6 +12,7 @@ The [template builder](scripts/build_template.py) and [Compose overlay](compose/
 are in this repo. Transport and lifecycle code live in the same Enterprise
 release as the application. See the [bundled adapter](https://github.com/OpenHands/enterprise/blob/c6191be/openhands/app_server/sandbox/e2b_sandbox_service.py).
 
-The earlier pilot exercised native conversations and same-process preview
+The [provider status record](provider.json) lists the package checks. The
+earlier pilot exercised native conversations and same-process preview
 recovery using a provider-aware Canvas build. The stock Sandbox V1 API can
 exercise the lifecycle independently of that Canvas change.
