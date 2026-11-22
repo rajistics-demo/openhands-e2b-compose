@@ -17,3 +17,17 @@ The [provider status record](provider.json) lists the package checks. The
 earlier pilot exercised native conversations and same-process preview
 recovery using a provider-aware Canvas build. The stock Sandbox V1 API can
 exercise the lifecycle independently of that Canvas change.
+
+## Sandbox Spec compatibility
+
+The bundled E2B adapter uses the Enterprise Sandbox Spec catalog. The
+configured `E2B_TEMPLATE` value is both the OpenHands spec ID and the E2B
+template reference.
+
+Enterprise’s Sandbox Spec selector and Agent Profile references use the
+same ID contract when those features are available in the Enterprise
+release. Kubernetes uses that contract to refer to a named runtime
+configuration. This Compose package activates a single sandbox backend.
+Offering Kubernetes and microVMs in one installation still requires
+routing new launches to the selected provider and routing existing
+conversations through their saved sandbox binding.

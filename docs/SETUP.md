@@ -69,7 +69,9 @@ leaves the database schema unchanged.
 
 ## Validate and clean up
 
-Confirm the spec catalog lists the configured E2B template. Start a native
+Confirm the Sandbox V1 spec catalog lists the exact `E2B_TEMPLATE` value.
+Pass that ID as the `sandbox_spec_id` query parameter on
+`POST /api/v1/sandboxes` to select the environment explicitly. Start a native
 conversation and confirm a tool event reaches Enterprise history. Copy
 [preview_probe.py](../validation/preview_probe.py) to the synthetic workspace,
 run it with `--listen 0.0.0.0 --port 8011`, and click **Check live process**.
