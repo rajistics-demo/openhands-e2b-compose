@@ -1,14 +1,17 @@
 # E2B for OpenHands Enterprise
 
-This provider-facing package describes the existing Enterprise managed adapter and its Canvas qualification path. The pre-existing Canvas E2B POC remains a separate proof point.
+**Experimental.** This package configures the E2B adapter bundled in
+Enterprise 1.88.0 and builds its Agent Server template. The control plane and
+Canvas stay in Docker Compose. E2B runs the conversation's sandbox.
 
-| Seam | E2B mapping |
-|---|---|
-| Environment | Map an operator-selected sandbox spec to a pinned E2B template. Include the matching Agent Server and fixture ports. |
-| Lifecycle and ownership | The Enterprise managed service records sandbox ownership and maps provision, read, pause, resume and delete to E2B. |
-| Guest credentials | The control plane provides sandbox-scoped Agent Server configuration and event callbacks. The E2B API key stays on the control plane. |
-| HTTP, WebSocket and preview | E2B exposes runtime ports through provider hostnames. Keep both Agent Server and preview access scoped to the correct sandbox. |
-| Persistence | E2B pause and reconnect support stateful continuation. Qualify the actual preview process and original conversation in Canvas. Treat expiry recovery as a separate test. |
-| Verification | Verify app-side event persistence and remove the disposable VM. Record SDK and template versions, feature availability, and any fallback. |
+- [Build a template and configure Compose](docs/SETUP.md)
+- [Interfaces, design choices, and alternatives](docs/INTERFACES.md)
+- [Pause, reopen and verify output](docs/SETUP.md#validate-and-clean-up)
 
-Use `provider.json` with the shared [API smoke](../openhands-provider-contract/README.md). Run the [Canvas acceptance case](../openhands-provider-contract/CANVAS.md) on the selected Enterprise version. The [E2B SDK reference](https://e2b.dev/docs/sdk-reference/python-sdk/v2.5.0/sandbox_sync) documents the provider primitives.
+The [template builder](scripts/build_template.py) and [Compose overlay](compose/)
+are in this repo. Transport and lifecycle code live in the same Enterprise
+release as the application. See the [bundled adapter](https://github.com/OpenHands/enterprise/blob/c6191be/openhands/app_server/sandbox/e2b_sandbox_service.py).
+
+The earlier pilot exercised native conversations and same-process preview
+recovery using a provider-aware Canvas build. The stock Sandbox V1 API can
+exercise the lifecycle independently of that Canvas change.

@@ -1,0 +1,23 @@
+x-e2b-environment: &e2b
+  OH_SANDBOX_KIND: openhands.app_server.sandbox.e2b_sandbox_service.E2BSandboxServiceInjector
+  OH_SANDBOX_SPEC_KIND: openhands.app_server.sandbox.e2b_sandbox_spec_service.E2BSandboxSpecServiceInjector
+  E2B_API_KEY: ${E2B_API_KEY:?Set a private E2B API key}
+  E2B_DOMAIN: ${E2B_DOMAIN:-e2b.app}
+  E2B_API_URL: ${E2B_API_URL:-}
+  E2B_TEMPLATE: ${E2B_TEMPLATE:?Set the template ID}
+  E2B_INIT_API_KEY: ${E2B_INIT_API_KEY:?Set the matching template bootstrap key}
+  OH_SANDBOX_TIMEOUT_SECONDS: ${E2B_LEASE_SECONDS:-3600}
+  OH_SANDBOX_MAX_NUM_SANDBOXES: ${E2B_SANDBOX_LIMIT:-2}
+  OH_SANDBOX_WEB_URL: ${E2B_CALLBACK_ORIGIN:?Set an HTTPS callback origin reachable from the guest}
+  OH_APP_CONVERSATION_SANDBOX_GROUPING_STRATEGY: NO_GROUPING
+  SANDBOX_INTERNAL_URL: ""
+
+services:
+  app:
+    environment: *e2b
+    volumes: !override
+      - app-filestore:/.openhands
+  worker:
+    environment: *e2b
+    volumes: !override
+      - app-filestore:/.openhands
