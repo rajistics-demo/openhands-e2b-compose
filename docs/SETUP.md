@@ -50,6 +50,23 @@ and verify a stock conversation first. The test baseline used Agent Server
    Set `E2B_PACKAGE` to the absolute clone path before running these commands
    from the Compose directory.
 
+## Enable the Canvas Pause button
+
+The base E2B adapter already supports Sandbox V1 pause and resume. To show
+the button in Canvas, build the companion image so Enterprise advertises
+the capability on E2B conversations.
+
+```bash
+docker build -t local/openhands-enterprise-e2b-pause:1.88.0 "$E2B_PACKAGE/compose/pause-overlay"
+```
+
+Add `-f "$E2B_PACKAGE/compose/docker-compose.e2b-pause.yml"` after the E2B
+overlay in both Compose commands above. Follow the
+[pinned Canvas build and browser test](../canvas/README.md). Use a
+synthetic preview on the E2B endpoint, and tag the conversation
+`canvasrecoverypilotpreview=true`. The companion adds API fields and
+leaves the database schema unchanged.
+
 ## Validate and clean up
 
 Confirm the spec catalog lists the configured E2B template. Start a native

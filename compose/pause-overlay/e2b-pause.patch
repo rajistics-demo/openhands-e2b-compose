@@ -1,0 +1,64 @@
+diff --git a/openhands/app_server/app_conversation/app_conversation_models.py b/openhands/app_server/app_conversation/app_conversation_models.py
+index fbbacee..9a18263 100644
+--- a/openhands/app_server/app_conversation/app_conversation_models.py
++++ b/openhands/app_server/app_conversation/app_conversation_models.py
+@@ -303,6 +303,10 @@ class AppConversationInfoPage(BaseModel):
+ 
+ 
+ class AppConversation(AppConversationInfo):  # type: ignore
++    sandbox_supports_runtime_pause: bool = Field(
++        default=False,
++        description='Whether the bound sandbox supports provider pause and resume.',
++    )
+     sandbox_status: SandboxStatus = Field(
+         default=SandboxStatus.MISSING,
+         description='Current sandbox status. Will be MISSING if the sandbox does not exist.',
+diff --git a/openhands/app_server/app_conversation/live_status_app_conversation_service.py b/openhands/app_server/app_conversation/live_status_app_conversation_service.py
+index 22d5943..f4d44f3 100644
+--- a/openhands/app_server/app_conversation/live_status_app_conversation_service.py
++++ b/openhands/app_server/app_conversation/live_status_app_conversation_service.py
+@@ -1478,6 +1478,9 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
+         return AppConversation(
+             **app_conversation_info.model_dump(),
+             sandbox_status=sandbox_status,
++            sandbox_supports_runtime_pause=bool(
++                sandbox and sandbox.supports_runtime_pause
++            ),
+             execution_status=execution_status,
+             conversation_url=conversation_url,
+             conversation_ui_url=get_conversation_ui_url(app_conversation_info.id),
+diff --git a/openhands/app_server/sandbox/e2b_sandbox_service.py b/openhands/app_server/sandbox/e2b_sandbox_service.py
+index f077b52..bbefaba 100644
+--- a/openhands/app_server/sandbox/e2b_sandbox_service.py
++++ b/openhands/app_server/sandbox/e2b_sandbox_service.py
+@@ -304,6 +304,7 @@ class E2BSandboxService(ManagedSandboxService):
+             session_api_key = None
+ 
+         return SandboxInfo(
++            supports_runtime_pause=True,
+             id=stored_sandbox.id,
+             created_by_user_id=stored_sandbox.created_by_user_id,
+             credential_org_id=stored_sandbox.credential_org_id,
+@@ -508,6 +509,7 @@ class E2BSandboxService(ManagedSandboxService):
+ 
+         exposed_urls = self._exposed_urls(e2b_sandbox_id, sandbox_spec, session_api_key)
+         return SandboxInfo(
++            supports_runtime_pause=True,
+             id=e2b_sandbox_id,
+             created_by_user_id=user_id,
+             credential_org_id=credential_org_id,
+diff --git a/openhands/app_server/sandbox/sandbox_models.py b/openhands/app_server/sandbox/sandbox_models.py
+index 5fff038..8db92fc 100644
+--- a/openhands/app_server/sandbox/sandbox_models.py
++++ b/openhands/app_server/sandbox/sandbox_models.py
+@@ -78,6 +78,10 @@ class SandboxInfo(BaseModel):
+     )
+     sandbox_spec_id: str
+     status: SandboxStatus
++    supports_runtime_pause: bool = Field(
++        default=False,
++        description='Whether this runtime supports provider pause and resume.',
++    )
+     session_api_key: str | None = Field(
+         description=(
+             'Key to access sandbox, to be added as an `X-Session-API-Key` header '

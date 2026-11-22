@@ -6,6 +6,7 @@ Canvas stay in Docker Compose. E2B runs the conversation's sandbox.
 
 - [Build a template and configure Compose](docs/SETUP.md)
 - [Interfaces, design choices, and alternatives](docs/INTERFACES.md)
+- [Build the pinned Canvas Pause demo](canvas/README.md)
 - [Pause, reopen and verify output](docs/SETUP.md#validate-and-clean-up)
 
 The [template builder](scripts/build_template.py) and [Compose overlay](compose/)

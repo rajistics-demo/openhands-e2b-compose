@@ -1,0 +1,5 @@
+services:
+  app:
+    image: local/openhands-enterprise-e2b-pause:1.88.0
+  worker:
+    image: local/openhands-enterprise-e2b-pause:1.88.0

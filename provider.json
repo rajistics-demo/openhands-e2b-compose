@@ -6,7 +6,7 @@
   "resume_semantics": "same-process",
   "evidence": {
     "api": "Current package passed Compose render and template SDK construction. Earlier live pilot verified same-process resume and retirement.",
-    "canvas": "Earlier pilot verified Pause and same-process browser preview recovery with a provider-aware Canvas build. A fresh install from this repo is untested.",
+    "canvas": "The included Canvas patch builds from the pinned source. The optional Enterprise capability patch applies to 1.88.0 and the combined Compose configuration renders. The earlier E2B pilot verified same-process preview recovery. A live run from this package is pending.",
     "expiry": "Replacement workspace recovery is untested."
   }
 }
