@@ -1,6 +1,6 @@
 # Provider-aware Canvas 1.35.0 pilot
 
-The patch in this directory is the Canvas candidate used for the earlier
+The Pause patch in this directory is the Canvas candidate used for the earlier
 isolated provider tests. Apply it to the pinned upstream checkout. The
 patch changes Canvas, so the selected Enterprise adapter also needs to
 advertise `sandbox_supports_runtime_pause` on conversations. Check that
@@ -18,9 +18,24 @@ cd canvas-pilot
 git checkout --detach 934612b3b6cee05d3a4400b98b48a9c69215401d
 git apply --check "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-provider-pause.patch"
 git apply "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-provider-pause.patch"
+# Optional with the compatible Enterprise lifecycle candidate
+git apply --check "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-e2b-fork.patch"
+git apply "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-e2b-fork.patch"
+# Optional on top of both patches, with the Enterprise Sandbox Spec catalog
+git apply --check "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-sandbox-spec-picker.patch"
+git apply "$PROVIDER_PACKAGE/canvas/canvas-1.35.0-sandbox-spec-picker.patch"
 npm ci
 VITE_BASE_PATH=/canvas VITE_CANVAS_RECOVERY_PILOT_ORIGIN=https://openhands.example.com npm run build
 ```
+
+Skip the optional fork and picker patches for the Pause-only build. The fork
+patch requires Enterprise to advertise `sandbox_supports_runtime_fork`
+and handle runtime fork and the new-chat workspace choices. This patch
+provides E2B workspace actions. The picker patch adds the home composer
+control. It requires the Enterprise `enable_sandbox_selector` feature flag,
+`/api/v1/sandbox-specs/search`, and the `sandbox_spec_id` launch field.
+Use the matching Enterprise router for the mixed-provider walkthrough in
+the [demo guide](../docs/DEMO.md).
 
 Use your actual isolated HTTPS origin in the build. Set
 `AGENT_CANVAS_LOCK_TO_CLOUD` to the same origin on the stock Canvas service.
@@ -47,7 +62,10 @@ and resume alone do not qualify post-expiry workspace recovery.
 The patch applied to a clean copy of the pinned source and passed 66 focused
 tests covering the Pause action, conversation routing, and preview. Those
 checks used the upstream lockfile dependencies already installed for 1.35.0.
-A fresh live provider deployment of this packaged build is still pending.
+See the [demo guide](../docs/DEMO.md) for live candidate results and benchmarks.
+For deployments using the optional patch, check that the separate checkout
+stays on the original VM with independent files, and that a fork retains
+history and dirty files on a different VM while the source stays active.
 
 ## Time Pause and reopen in Chromium
 

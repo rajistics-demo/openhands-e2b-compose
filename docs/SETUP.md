@@ -50,6 +50,58 @@ and verify a stock conversation first. The test baseline used Agent Server
    Set `E2B_PACKAGE` to the absolute clone path before running these commands
    from the Compose directory.
 
+## Configure small and large E2B profiles
+
+Use an Enterprise image built with the E2B adapter changes for independent
+spec IDs and provider egress policy. The stock 1.88.0 pilot uses the single
+template configuration above.
+
+Build two templates with your desired CPU and memory sizes. Use the existing
+`E2B_TEMPLATE` and `E2B_INIT_API_KEY` entries for the small template. Add
+`E2B_LARGE_TEMPLATE`, `E2B_LARGE_INIT_API_KEY`, and
+`E2B_APPROVED_EGRESS_HOSTS` to the same private env file. For example, set
+`E2B_APPROVED_EGRESS_HOSTS='["callbacks.example.com","model.example.com"]'`
+using your actual callback, model, and integration hosts. The E2B provider
+applies the allowlist over a default IPv4 deny. This is a hostname egress
+policy.
+
+Add `-f "$E2B_PACKAGE/compose/docker-compose.e2b-profiles.yml"` after the
+base E2B overlay in both Compose commands. Select `microvm-small` or
+`microvm-large` through the Sandbox Spec picker. Releases with Sandbox Spec
+references on Agent Profiles can save the same ID there. Enterprise records
+the stable ID. The E2B adapter resolves it to the configured template when
+starting a VM.
+
+The November 26 AWS check rendered both profiles for `app` and `worker`.
+All 100 focused Enterprise E2B tests passed against temporary PostgreSQL,
+including the profile configuration, provider egress arguments, and pause
+refusal handling.
+
+## Configure E2B warm inventory
+
+Use a candidate Enterprise build with the E2B warm inventory worker enabled.
+Keep the default size of zero for installations that do not need prewarming.
+To opt in, set `E2B_WARM_POOL_SIZE` for hot inventory,
+`E2B_WARM_POOL_PAUSED_SIZE` for suspended reserve inventory,
+`E2B_WARM_POOL_ORG_ID` to the authorized organization's UUID, and
+`E2B_WARM_POOL_SPEC_ID` to one Sandbox Spec using an immutable E2B template ID.
+The two targets can total at most ten. The configured sandbox lease must be at
+least 90 seconds. Keep the Compose
+worker running to refill the pool and retire unused inventory.
+
+The worker keeps dormant VMs for that organization and spec. The launch path
+consumes a slot before sending the VM any conversation credentials. It prefers
+hot inventory and falls back to the paused reserve or a normal cold launch. Ordinary
+launches use the cold path whenever no eligible slot is available. PostgreSQL
+records pending creates so an interrupted worker can retry the same provider
+idempotency key. Disable the pool and let its worker retire available inventory
+before rotating the E2B provider credential or removing the test stack.
+
+The November 26 AWS probe claimed one running and one paused VM from live
+E2B. Both claims returned the preallocated VM ID and received distinct
+Enterprise session keys. The probe simulated the Agent Server handshake, so
+it does not measure Canvas or live preview latency.
+
 ## Enable the Canvas Pause button
 
 The base E2B adapter already supports Sandbox V1 pause and resume. To show
@@ -87,3 +139,68 @@ preview content on the default E2B browser endpoint.
 To roll back, delete only the task-owned sandbox, confirm its termination
 in E2B, and start Compose with the original file list. Remove the temporary
 template and credentials under your normal provider retention policy.
+
+## Qualify native E2B lifecycle
+
+Run this provider-level probe from an AWS worker or CI before attempting the
+same flow in Canvas. Use a dedicated synthetic Linux template with Python 3 and
+curl, without customer data, injected credentials or mounted volumes. Use a
+project with capacity for the original sandbox and two forks. Load the project's
+`E2B_API_KEY` through the worker's private configuration.
+
+```bash
+python -m pip install 'e2b==2.64.0'
+python validation/lifecycle_probe.py --template "$E2B_TEST_TEMPLATE_ID"
+```
+
+The probe starts a loopback preview, suspends the original VM, and verifies that
+the same sandbox resumes with its workspace and in-memory counter intact. It
+then forks two children and checks that writes to one child's files and memory
+leave the original and the sibling intact. It prints timings for start, pause,
+resume, and fork, and requests cleanup for every known sandbox. Inspect the
+provider inventory after a timeout or cleanup failure. E2B paused sandboxes
+require explicit deletion, so the running VM timeout alone cannot clean up a
+failed pause-and-resume test.
+
+This probe qualifies provider behavior. Canvas conversation forking, preview
+authorization require separate Enterprise tests. See
+[E2B forking](https://docs.e2b.dev/sandbox/fork) and
+[E2B persistence](https://docs.e2b.dev/sandbox/persistence).
+
+### AWS Compose run on November 26, 2026
+
+One run using E2B Cloud's `base` template and Python SDK 2.64.0 passed. These
+are elapsed times from the Compose runner through E2B's SDK. The preview was
+checked over loopback inside each sandbox.
+
+| Operation | Seconds |
+| --- | ---: |
+| Create VM and reach the synthetic preview | 0.900 |
+| Suspend and observe `PAUSED` | 0.178 |
+| Resume and verify the original preview and workspace | 0.382 |
+| Return two forked VM handles | 0.951 |
+| Verify both fork previews and workspaces | 1.113 |
+
+The original and sibling retained their file and counter values after the
+first fork changed both. All three sandboxes were verified terminated, and the
+temporary Compose project was removed. Canvas and browser latency were outside
+this run's scope.
+
+## Configure private previews
+
+Apply the matching Enterprise candidate and its ingress migration, then add
+`compose/docker-compose.e2b-private.yml` after the E2B overlay. Set the HTTPS
+app origin with `WEB_URL` and arrange DNS for `*.preview.<app-host>`. Set
+`APP_IMAGE` to the matching candidate image for the app and gateway. Mount the
+wildcard certificate and private key via `E2B_PREVIEW_TLS_DIR`, and set a random
+`E2B_INGRESS_SIGNING_KEY`. The app and gateway use the shared Enterprise
+filestore for the database encryption key.
+
+The adapter starts new guests with E2B public traffic disabled. The gateway
+authenticates the Agent Server connection and issues a short-lived, host-only
+cookie for a preview. After checking it, the gateway sends a bounded HTTP
+request to the guest's loopback preview port through E2B's management channel.
+This keeps the provider ingress header and browser credentials out of the
+preview application. The pilot serves HTTP previews with a 48 KiB request
+limit and a 2 MiB response limit. Existing publicly reachable sandboxes should
+expire or be retired before switching this fixture to private ingress.

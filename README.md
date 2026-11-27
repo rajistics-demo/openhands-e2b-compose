@@ -1,33 +1,37 @@
 # E2B for OpenHands Enterprise
 
-**Experimental.** This package configures the E2B adapter bundled in
-Enterprise 1.88.0 and builds its Agent Server template. The control plane and
-Canvas stay in Docker Compose. E2B runs the conversation's sandbox.
+An experimental demo package for running OpenHands conversations on E2B
+microVMs. Enterprise and Canvas run in Docker Compose. A Sandbox Spec
+selects the VM template, and reopening a conversation follows its saved
+sandbox binding.
 
-- [Build a template and configure Compose](docs/SETUP.md)
-- [Interfaces, design choices, and alternatives](docs/INTERFACES.md)
-- [Build the pinned Canvas Pause demo](canvas/README.md)
-- [Pause, reopen and verify output](docs/SETUP.md#validate-and-clean-up)
+- [Run the Compose quickstart](docs/SETUP.md#build-and-start) with the E2B
+  adapter bundled in Enterprise 1.88.0.
+- [Try the Canvas demo](docs/DEMO.md) covering workspace choices, Pause,
+  resume, and the startup comparisons.
+- [Build the pinned Canvas overlay](canvas/README.md) and
+  [qualify provider lifecycle](docs/SETUP.md#qualify-native-e2b-lifecycle).
+- [Read the interfaces and design choices](docs/INTERFACES.md).
 
-The [template builder](scripts/build_template.py) and [Compose overlay](compose/)
-are in this repo. Transport and lifecycle code live in the same Enterprise
-release as the application. See the [bundled adapter](https://github.com/OpenHands/enterprise/blob/c6191be/openhands/app_server/sandbox/e2b_sandbox_service.py).
+## What we demonstrated
 
-The [provider status record](provider.json) lists the package checks. The
-earlier pilot exercised native conversations and same-process preview
-recovery using a provider-aware Canvas build. The stock Sandbox V1 API can
-exercise the lifecycle independently of that Canvas change.
+| Capability | Where it was verified |
+| --- | --- |
+| Standard and Large specs, E2B or Kubernetes | Mixed-provider Enterprise Compose candidate, using Canvas and Agent Profiles |
+| New chat with current files, a clean checkout on the same machine, or a separate machine | Live Canvas candidate. The separate-machine dialog was checked on both providers |
+| Same-VM Pause and resume | Live E2B, with the original conversation and workspace |
+| Warm E2B claim, authenticated preview, and conversation fork | Separate E2B candidate. The source stayed on its VM and the fork opened on an independent VM |
+| Automatic checkpoints and replacement after provider expiry | Separate E2B candidate. The original conversation opened on a different VM with history, dirty files, and working preview |
+| Same real model on both providers | DeepSeek V4.1 Flash completed the same Python fix on both, with three tests passing in independent reruns |
+| Automation Sandbox Spec selection | Agent Profile selection saved on the Compose demo. The Kubernetes template-ready example completed, and the E2B run reached the selected sandbox |
 
-## Sandbox Spec compatibility
+The quickstart activates an E2B backend. Mixed-provider routing and the
+advanced lifecycle flows require matching Enterprise and Canvas candidate
+builds. This repo contains the template builder, Compose overlays, pinned
+Canvas patches, and validation probes. See the [capability record](provider.json)
+and [demo guide](docs/DEMO.md) for the deployment boundaries and timing details.
 
-The bundled E2B adapter uses the Enterprise Sandbox Spec catalog. The
-configured `E2B_TEMPLATE` value is both the OpenHands spec ID and the E2B
-template reference.
-
-Enterprise’s Sandbox Spec selector and Agent Profile references use the
-same ID contract when those features are available in the Enterprise
-release. Kubernetes uses that contract to refer to a named runtime
-configuration. This Compose package activates a single sandbox backend.
-Offering Kubernetes and microVMs in one installation still requires
-routing new launches to the selected provider and routing existing
-conversations through their saved sandbox binding.
+Enterprise uses the same Sandbox Spec ID contract for both providers. In the
+single-template quickstart, `E2B_TEMPLATE` is both the spec ID and template
+reference. The [profiles overlay](docs/SETUP.md#configure-small-and-large-e2b-profiles)
+maps stable spec IDs to separately configured templates.

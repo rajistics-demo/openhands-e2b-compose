@@ -1,0 +1,19 @@
+x-e2b-profiles: &e2b-profiles
+  OH_SANDBOX_SPEC_SPECS_0_ID: microvm-small
+  OH_SANDBOX_SPEC_SPECS_0_COMMAND_IS_NONE: '1'
+  OH_SANDBOX_SPEC_SPECS_0_TEMPLATE: ${E2B_TEMPLATE:?Set the small template ID}
+  OH_SANDBOX_SPEC_SPECS_0_INIT_API_KEY: ${E2B_INIT_API_KEY:?Set the small bootstrap key}
+  OH_SANDBOX_SPEC_SPECS_0_WORKING_DIR: /workspace/project
+  OH_SANDBOX_SPEC_SPECS_0_EGRESS_HOSTS: ${E2B_APPROVED_EGRESS_HOSTS:?Set approved hosts as a JSON array}
+  OH_SANDBOX_SPEC_SPECS_1_ID: microvm-large
+  OH_SANDBOX_SPEC_SPECS_1_COMMAND_IS_NONE: '1'
+  OH_SANDBOX_SPEC_SPECS_1_TEMPLATE: ${E2B_LARGE_TEMPLATE:?Set the large template ID}
+  OH_SANDBOX_SPEC_SPECS_1_INIT_API_KEY: ${E2B_LARGE_INIT_API_KEY:?Set the large bootstrap key}
+  OH_SANDBOX_SPEC_SPECS_1_WORKING_DIR: /workspace/project
+  OH_SANDBOX_SPEC_SPECS_1_EGRESS_HOSTS: ${E2B_APPROVED_EGRESS_HOSTS:?Set approved hosts as a JSON array}
+
+services:
+  app:
+    environment: *e2b-profiles
+  worker:
+    environment: *e2b-profiles

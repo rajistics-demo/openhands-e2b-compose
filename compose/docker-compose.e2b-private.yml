@@ -1,0 +1,65 @@
+services:
+  app:
+    environment: &private-e2b
+      OH_SANDBOX_PRIVATE_INGRESS: 'true'
+      E2B_INGRESS_APP_ORIGIN: ${WEB_URL:?Set the canonical HTTPS app origin}
+  worker:
+    environment: *private-e2b
+  e2b-ingress:
+    image: ${APP_IMAGE:?Set the Enterprise candidate image with E2B private ingress}
+    user: '0:0'
+    entrypoint:
+      - python
+      - -m
+      - uvicorn
+      - openhands.app_server.sandbox.e2b_ingress_gateway:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8000'
+      - --no-access-log
+    environment:
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_NAME: ${DB_NAME:-openhands}
+      DB_USER: ${DB_USER:-openhands}
+      DB_PASS: ${DB_PASS:?Use the Enterprise database password}
+      REDIS_HOST: redis
+      OH_DEPLOYMENT_MODE: self_hosted
+      OH_APP_MODE: saas
+      OH_PERSISTENCE_DIR: /.openhands
+      E2B_INGRESS_APP_ORIGIN: ${WEB_URL:?Set the canonical HTTPS app origin}
+      E2B_INGRESS_SIGNING_KEY: ${E2B_INGRESS_SIGNING_KEY:?Set a random preview signing key}
+    volumes:
+      - app-filestore:/.openhands
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/alive')"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+  https:
+    depends_on:
+      e2b-ingress:
+        condition: service_healthy
+    volumes:
+      - ${E2B_PREVIEW_TLS_DIR:?Set the wildcard preview certificate directory}:/etc/e2b-preview-tls:ro
+
+configs:
+  https-caddyfile:
+    content: |
+      ${WEB_HOST:?Set the canonical app hostname} {
+        handle_path /e2b-runtime/* {
+          reverse_proxy e2b-ingress:8000
+        }
+        handle {
+          reverse_proxy proxy:80
+        }
+      }
+      *.preview.${WEB_HOST:?Set the canonical app hostname} {
+        tls /etc/e2b-preview-tls/fullchain.pem /etc/e2b-preview-tls/privkey.pem
+        reverse_proxy e2b-ingress:8000
+      }

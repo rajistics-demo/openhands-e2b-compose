@@ -1,0 +1,211 @@
+--- a/src/components/features/conversation/conversation-name-with-status.tsx
++++ b/src/components/features/conversation/conversation-name-with-status.tsx
+@@ -1,4 +1,11 @@
+ import React from "react";
++import { useNavigate } from "react-router";
++import { useQueryClient } from "@tanstack/react-query";
++import {
++  forkCloudConversationRuntime,
++  startCloudConversationInRuntime,
++} from "#/api/cloud/conversation-service.api";
++import { getActiveBackend } from "#/api/backend-registry/active-store";
+ import { useActiveBackend } from "#/contexts/active-backend-context";
+ import { ExecutionStatus } from "#/types/agent-server/core";
+ import { useConversationLaunchStore } from "#/stores/conversation-launch-store";
+@@ -26,6 +33,104 @@
+   isExecutionPaused,
+ } from "#/utils/status";
+ import { I18nKey } from "#/i18n/declaration";
++
++const runtimeChoices = [
++  {
++    id: "same",
++    label: "New chat in this VM",
++    description: "Start a fresh chat with the current workspace.",
++    testId: "new-chat-same-runtime-button",
++  },
++  {
++    id: "checkout",
++    label: "Use a separate checkout",
++    description: "Start from the current commit with independent files on this VM.",
++    testId: "new-chat-separate-checkout-button",
++  },
++  {
++    id: "new",
++    label: "New chat in a new VM",
++    description: "Start a fresh chat with a clean workspace.",
++    testId: "new-chat-new-runtime-button",
++  },
++  {
++    id: "fork",
++    label: "Fork into a new VM",
++    description: "Copy this chat and workspace into a separate VM.",
++    testId: "fork-cloud-runtime-button",
++  },
++] as const;
++
++type RuntimeChoice = (typeof runtimeChoices)[number]["id"];
++
++function RuntimeConversationChoices({
++  conversationId,
++  orgId,
++  sandboxId,
++}: {
++  conversationId: string;
++  orgId: string;
++  sandboxId: string;
++}) {
++  const navigate = useNavigate();
++  const client = useQueryClient();
++  const { backend } = useActiveBackend();
++  const [pending, setPending] = React.useState<RuntimeChoice | null>(null);
++  const [error, setError] = React.useState(false);
++  const menu = React.useRef<HTMLDetailsElement>(null);
++
++  async function launch(choice: RuntimeChoice) {
++    setPending(choice);
++    setError(false);
++    try {
++      const id = choice === "fork"
++        ? (await forkCloudConversationRuntime(conversationId, orgId)).id
++        : await startCloudConversationInRuntime(
++            orgId,
++            choice === "new" ? null : sandboxId,
++            choice === "new" ? undefined : conversationId,
++            choice === "checkout",
++          );
++      const active = getActiveBackend();
++      if (active.backend.id !== backend.id || active.orgId !== orgId) return;
++      void client.invalidateQueries({ queryKey: ["user", "conversations"] });
++      if (menu.current) menu.current.open = false;
++      navigate(`/conversations/${id}`);
++    } catch {
++      setError(true);
++    } finally {
++      setPending(null);
++    }
++  }
++
++  return (
++    <details className="relative" ref={menu}>
++      <summary className="cursor-pointer list-none whitespace-nowrap rounded-md px-2 py-1 text-sm text-foreground hover:bg-contrast/10">
++        {pending ? "Starting…" : "Workspace options"}
++      </summary>
++      <div className="absolute right-0 z-30 w-64 rounded-lg border border-contrast/10 bg-background p-1 shadow-lg">
++        {runtimeChoices.map(({ id, label, description, testId }) => (
++          <button
++            key={id}
++            type="button"
++            data-testid={testId}
++            disabled={pending !== null}
++            className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-contrast/10 disabled:opacity-50"
++            onClick={() => void launch(id)}
++          >
++            <span className="block font-medium">{label}</span>
++            <span className="block text-xs text-muted">{description}</span>
++          </button>
++        ))}
++        {error && (
++          <p role="alert" className="px-3 py-1 text-sm">
++            Could not start the conversation.
++          </p>
++        )}
++      </div>
++    </details>
++  );
++}
+ 
+ export function ConversationNameWithStatus() {
+   const { t } = useTranslation("openhands");
+@@ -195,6 +300,19 @@
+             {t(I18nKey.COMMON$PAUSE_RUNTIME)}
+           </button>
+         )}
++        {backend.kind === "cloud" && orgId && conversationId &&
++        conversation?.id === conversationId &&
++        conversation?.sandbox_supports_runtime_fork === true &&
++        conversation.sandbox_id &&
++        conversation?.sandbox_status === "RUNNING" &&
++        (executionStatus === ExecutionStatus.IDLE || executionStatus === ExecutionStatus.FINISHED) && (
++          <RuntimeConversationChoices
++            key={conversationId}
++            conversationId={conversationId}
++            orgId={orgId}
++            sandboxId={conversation.sandbox_id}
++          />
++        )}
+         <ConversationGitActionsToggle />
+         <ConversationOverviewToggle />
+         <RightPanelToggle />
+--- a/src/api/cloud/conversation-service.api.ts
++++ b/src/api/cloud/conversation-service.api.ts
+@@ -298,6 +298,49 @@
+   });
+ }
+ 
++export async function startCloudConversationInRuntime(
++  orgId: string,
++  sandboxId: string | null,
++  sourceConversationId?: string,
++  separateCheckout = false,
++): Promise<string> {
++  const { backend, orgId: activeOrg } = getActiveBackend();
++  if (backend.kind !== "cloud" || activeOrg !== orgId) {
++    throw new Error("The workspace organization is no longer selected.");
++  }
++  const task = await createCloudAppConversation(
++    sandboxId
++      ? {
++          sandbox_id: sandboxId,
++          ...(separateCheckout
++            ? { separate_checkout_from: sourceConversationId }
++            : { reuse_prepared_workspace_from: sourceConversationId }),
++        }
++      : { force_new_sandbox: true },
++    backend,
++  );
++  if (task.status === "ERROR") {
++    throw new Error("The conversation could not be started.");
++  }
++  return task.app_conversation_id ?? `task-${task.id}`;
++}
++
++export async function forkCloudConversationRuntime(
++  conversationId: string,
++  orgId: string,
++): Promise<{ id: string }> {
++  const { backend, orgId: activeOrg } = getActiveBackend();
++  if (backend.kind !== "cloud" || activeOrg !== orgId) {
++    throw new Error("The fork organization is no longer selected.");
++  }
++  return callCloudProxy<{ id: string }>({
++    backend,
++    method: "POST",
++    path: `/api/v1/app-conversations/${conversationId}/runtime/fork`,
++    timeoutSeconds: 185,
++  });
++}
++
+ export async function recoverCloudConversationRuntime(
+   conversationId: string,
+   orgId: string,
+--- a/src/api/conversation-service/agent-server-conversation-service.types.ts
++++ b/src/api/conversation-service/agent-server-conversation-service.types.ts
+@@ -92,6 +92,9 @@
+   parent_conversation_id?: string | null;
+   agent_type?: "default" | "plan";
+   sandbox_id?: string | null;
++  force_new_sandbox?: boolean;
++  reuse_prepared_workspace_from?: string;
++  separate_checkout_from?: string;
+   plugins?: PluginSpec[] | null; // Plugins to load when starting the conversation
+   client_tools?: ClientToolSpec[] | null; // Browser/client-handled tools registered with the runtime
+   tags?: Record<string, string> | null; // Conversation tags to persist at start
+@@ -223,6 +226,7 @@
+   /** Native runtime pause/resume advertised by Enterprise for this sandbox. */
+   sandbox_supports_runtime_pause?: boolean;
+   recovery_available?: boolean;
++  sandbox_supports_runtime_fork?: boolean;
+   conversation_url: string | null;
+   session_api_key: string | null;
+   sandbox_id: string | null;

@@ -1,0 +1,342 @@
+diff --git a/src/api/cloud/proxy.ts b/src/api/cloud/proxy.ts
+--- a/src/api/cloud/proxy.ts
++++ b/src/api/cloud/proxy.ts
+@@ -12,6 +12,7 @@
+   method: CloudRequestOptions["method"];
+   path: string;
+   body?: unknown;
++  orgId?: string;
+   headers?: Record<string, string>;
+   timeoutSeconds?: number;
+   hostOverride?: string;
+@@ -28,7 +29,7 @@
+     : createCloudClient(req.backend);
+   // The org this request is scoped to, read when the client is built so a
+   // later org switch can't be blamed for this response.
+-  const orgId = activeOrgForBackend(req.backend);
++  const orgId = req.orgId ?? activeOrgForBackend(req.backend);
+   const headers = orgId ? { ...req.headers, "X-Org-Id": orgId } : req.headers;
+ 
+   try {
+diff --git a/src/api/cloud/sandbox-template-service.api.ts b/src/api/cloud/sandbox-template-service.api.ts
+new file mode 100644
+--- /dev/null
++++ b/src/api/cloud/sandbox-template-service.api.ts
+@@ -0,0 +1,51 @@
++import { getRegisteredBackends } from "../backend-registry/active-store";
++import { callCloudProxy } from "./proxy";
++
++export interface SandboxTemplateOption {
++  id: string;
++  display_name: string;
++}
++
++export interface SandboxSelectionOptions {
++  enabled: boolean;
++  items: SandboxTemplateOption[];
++}
++
++export async function getSandboxSelectionOptions(
++  backendId: string,
++  orgId: string,
++): Promise<SandboxSelectionOptions> {
++  const backend = getRegisteredBackends().find((item) => item.id === backendId);
++  if (backend?.kind !== "cloud") {
++    throw new Error("Sandbox templates require a registered cloud backend.");
++  }
++  const config = await callCloudProxy<{
++    feature_flags?: { enable_sandbox_selector?: boolean };
++  }>({ backend, method: "GET", path: "/api/v1/web-client/config", orgId });
++  if (config?.feature_flags?.enable_sandbox_selector !== true) {
++    return { enabled: false, items: [] };
++  }
++  const items: SandboxTemplateOption[] = [];
++  const seenPages = new Set<string>();
++  let pageId: string | null = null;
++  do {
++    const path = pageId
++      ? `/api/v1/sandbox-specs/search?page_id=${encodeURIComponent(pageId)}`
++      : "/api/v1/sandbox-specs/search";
++    const page = await callCloudProxy<{
++      items: { id: string; name?: string | null }[];
++      next_page_id?: string | null;
++    }>({ backend, method: "GET", path, orgId });
++    if (!Array.isArray(page?.items)) return { enabled: false, items: [] };
++    for (const spec of page.items) {
++      if (typeof spec?.id !== "string" || !spec.id) continue;
++      items.push({ id: spec.id, display_name: spec.name || spec.id });
++    }
++    pageId = page.next_page_id ?? null;
++    if (pageId && seenPages.has(pageId)) {
++      return { enabled: false, items: [] };
++    }
++    if (pageId) seenPages.add(pageId);
++  } while (pageId);
++  return { enabled: true, items };
++}
+diff --git a/src/api/conversation-service/agent-server-conversation-service.api.ts b/src/api/conversation-service/agent-server-conversation-service.api.ts
+--- a/src/api/conversation-service/agent-server-conversation-service.api.ts
++++ b/src/api/conversation-service/agent-server-conversation-service.api.ts
+@@ -492,6 +492,8 @@
+   agentLlmProfileOverride?: string;
+   /** Cloud only: run this conversation on the named LLM profile (`llm_profile`). */
+   llmProfile?: string;
++  /** Cloud only: one-conversation named sandbox template override. */
++  sandboxSpecId?: string;
+ }
+ 
+ class AgentServerConversationService {
+@@ -547,6 +549,7 @@
+       parentConversationId,
+       agentType,
+       sandboxId,
++      sandboxSpecId,
+       agentProfileId,
+       agentProfileKind,
+       agentLlmProfileRef,
+@@ -588,6 +591,7 @@
+         agent_type: agentType,
+         sandbox_id: sandboxId ?? null,
+         agent_profile_id: agentProfileId ?? null,
++        ...(sandboxSpecId ? { sandbox_spec_id: sandboxSpecId } : {}),
+         ...(llmProfile ? { llm_profile: llmProfile } : {}),
+         ...(routerAtStartSuffix
+           ? {
+diff --git a/src/api/conversation-service/agent-server-conversation-service.types.ts b/src/api/conversation-service/agent-server-conversation-service.types.ts
+--- a/src/api/conversation-service/agent-server-conversation-service.types.ts
++++ b/src/api/conversation-service/agent-server-conversation-service.types.ts
+@@ -92,6 +92,7 @@
+   parent_conversation_id?: string | null;
+   agent_type?: "default" | "plan";
+   sandbox_id?: string | null;
++  sandbox_spec_id?: string | null;
+   force_new_sandbox?: boolean;
+   reuse_prepared_workspace_from?: string;
+   separate_checkout_from?: string;
+diff --git a/src/components/features/home/home-chat-launcher.tsx b/src/components/features/home/home-chat-launcher.tsx
+--- a/src/components/features/home/home-chat-launcher.tsx
++++ b/src/components/features/home/home-chat-launcher.tsx
+@@ -1,3 +1,5 @@
++import { SandboxSelector } from "./sandbox-selector";
++import { useSandboxTemplates } from "#/hooks/query/use-sandbox-templates";
+ import { useConversationLaunchStore } from "#/stores/conversation-launch-store";
+ import { useConversationWorkspace } from "#/hooks/query/use-conversation-workspace";
+ import { useEffect, useRef, useState } from "react";
+@@ -105,6 +107,21 @@
+     useHomeRecommendedAutomationsDismissed();
+   const [selectedPlugins, setSelectedPlugins] = useState<PluginSpec[]>([]);
+   const [isPluginPickerOpen, setIsPluginPickerOpen] = useState(false);
++  const { data: sandboxOptions } = useSandboxTemplates();
++  const [sandboxSelection, setSandboxSelection] = useState<{
++    backendId: string;
++    orgId: string | null | undefined;
++    templateId: string;
++  } | null>(null);
++  useEffect(() => setSandboxSelection(null), [backend.id, orgId]);
++  const selectedSandboxId =
++    !isLocal &&
++    sandboxOptions?.enabled &&
++    sandboxSelection?.backendId === backend.id &&
++    sandboxSelection.orgId === orgId &&
++    sandboxOptions.items.some((item) => item.id === sandboxSelection.templateId)
++      ? sandboxSelection.templateId
++      : "";
+   const [launcherMode, setLauncherMode] = useState<HomeLauncherMode>("code");
+   const displayedLauncherMode = launcherMode;
+   const isAutomateMode = launcherMode === "automate";
+@@ -246,6 +263,9 @@
+     // Explicitly-attached plugins are additive on top of any ambient set and
+     // are resolved from git at run time. Omitted entirely when none selected so
+     // nothing attaches unless the user picked it.
++    if (selectedSandboxId && !isAutomateMode) {
++      variables.sandboxSpecId = selectedSandboxId;
++    }
+     if (!isAutomateMode && selectedPlugins.length > 0) {
+       variables = { ...variables, plugins: selectedPlugins };
+     }
+@@ -530,7 +550,7 @@
+           data-testid="home-composer-actions"
+           aria-disabled={isAutomateMode}
+           className={cn(
+-            "flex items-center justify-start gap-2",
++            "flex flex-wrap items-center justify-start gap-2",
+             activeLaunch && "hidden",
+             isAutomateMode && "pointer-events-none opacity-40",
+           )}
+@@ -577,6 +597,16 @@
+             onClick={() => setIsPluginPickerOpen(true)}
+             disabled={isCreating || isAutomateMode}
+           />
++          {!isLocal && sandboxOptions?.enabled && sandboxOptions.items.length > 0 && (
++            <SandboxSelector
++              items={sandboxOptions.items}
++              value={selectedSandboxId}
++              onChange={(templateId) =>
++                setSandboxSelection({ backendId: backend.id, orgId, templateId })
++              }
++              disabled={isCreating || isAutomateMode}
++            />
++          )}
+         </div>
+ 
+         <div
+diff --git a/src/components/features/home/sandbox-selector.tsx b/src/components/features/home/sandbox-selector.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/components/features/home/sandbox-selector.tsx
+@@ -0,0 +1,61 @@
++import { Box } from "lucide-react";
++import { useTranslation } from "react-i18next";
++import { I18nKey } from "#/i18n/declaration";
++import type { SandboxTemplateOption } from "#/api/cloud/sandbox-template-service.api";
++import { cn } from "#/utils/utils";
++import {
++  formControlBorderClassName,
++  formControlFocusWithinClassName,
++  formControlSurfaceClassName,
++} from "#/utils/form-control-classes";
++
++interface SandboxSelectorProps {
++  items: SandboxTemplateOption[];
++  value: string;
++  onChange: (value: string) => void;
++  disabled: boolean;
++}
++
++export function SandboxSelector({
++  items,
++  value,
++  onChange,
++  disabled,
++}: SandboxSelectorProps) {
++  const { t } = useTranslation("openhands");
++  return (
++    <label
++      className={cn(
++        "flex min-w-0 max-w-full items-center gap-2 rounded-full px-2.5 py-1 text-sm text-contrast",
++        formControlBorderClassName,
++        formControlSurfaceClassName,
++        formControlFocusWithinClassName,
++        disabled && "opacity-50",
++      )}
++    >
++      <Box size={16} className="shrink-0" aria-hidden />
++      <span>{t(I18nKey.HOME$SANDBOX_LABEL)}</span>
++      <select
++        data-testid="sandbox-selector"
++        aria-label={t(I18nKey.HOME$SANDBOX_LABEL)}
++        value={value}
++        onChange={(event) => onChange(event.target.value)}
++        disabled={disabled}
++        className="min-w-0 max-w-48 cursor-pointer truncate bg-transparent outline-none disabled:cursor-not-allowed"
++      >
++        <option value="" className="bg-base-secondary text-contrast">
++          {t(I18nKey.HOME$SANDBOX_DEFAULT)}
++        </option>
++        {items.map((item) => (
++          <option
++            key={item.id}
++            value={item.id}
++            className="bg-base-secondary text-contrast"
++          >
++            {item.display_name}
++          </option>
++        ))}
++      </select>
++    </label>
++  );
++}
+diff --git a/src/hooks/mutation/resolve-conversation-launch.ts b/src/hooks/mutation/resolve-conversation-launch.ts
+--- a/src/hooks/mutation/resolve-conversation-launch.ts
++++ b/src/hooks/mutation/resolve-conversation-launch.ts
+@@ -212,6 +212,14 @@
+   options: CreateConversationOptions,
+ ): Promise<AppConversationStartTask> {
+   const requestedEnvironment = getActiveBackend();
++  if (
++    options.sandboxSpecId &&
++    (requestedEnvironment.backend.id !== context.backendId ||
++      requestedEnvironment.orgId !== context.orgId)
++  ) {
++    throw new Error(i18n.t(I18nKey.CONVERSATION$START_ENVIRONMENT_CHANGED));
++  }
++
+   const launch = await resolveConversationLaunch({
+     ...context,
+     agentProfileId,
+diff --git a/src/hooks/mutation/use-create-conversation.ts b/src/hooks/mutation/use-create-conversation.ts
+--- a/src/hooks/mutation/use-create-conversation.ts
++++ b/src/hooks/mutation/use-create-conversation.ts
+@@ -45,6 +45,7 @@
+   // one (the sidebar's "New Conversation in Sandbox"). Local backends have no
+   // sandboxes, and the local launch path ignores it.
+   sandboxId?: string;
++  sandboxSpecId?: string;
+   // Launch from a specific AgentProfile (local backend). When omitted, the
+   // active AgentProfile (if any) is used so home-composed conversations
+   // launch from the user's selected profile (#3727).
+@@ -114,6 +115,7 @@
+         agentProfileId,
+         llmProfile,
+         sandboxId,
++        sandboxSpecId,
+       } = variables;
+ 
+       // A home-page model pick (LLM profile or ACP model) made before the
+@@ -156,6 +158,7 @@
+           agentType,
+           ...(llmProfile ? { llmProfile } : {}),
+           ...(sandboxId ? { sandboxId } : {}),
++          ...(!sandboxId && sandboxSpecId ? { sandboxSpecId } : {}),
+           // Cloud only; a local launch reads the toggle itself and gates it
+           // on the launched profile's router. Only stamped when on, so the
+           // e2e snapshot tests that assert the exact createConversation
+diff --git a/src/hooks/query/query-keys.ts b/src/hooks/query/query-keys.ts
+--- a/src/hooks/query/query-keys.ts
++++ b/src/hooks/query/query-keys.ts
+@@ -10,6 +10,10 @@
+   WEB_CLIENT_CONFIG: ["web-client-config"] as const,
+   /** Same-origin OpenHands app cookie authentication status */
+   MAIN_APP_COOKIE_AUTH: ["main-app-cookie-auth"] as const,
++} as const;
++
++export const SANDBOX_TEMPLATES_QUERY_KEYS = {
++  all: ["sandbox-template-options"] as const,
+ } as const;
+ 
+ export const SETTINGS_QUERY_KEYS = {
+diff --git a/src/hooks/query/use-sandbox-templates.ts b/src/hooks/query/use-sandbox-templates.ts
+new file mode 100644
+--- /dev/null
++++ b/src/hooks/query/use-sandbox-templates.ts
+@@ -0,0 +1,20 @@
++import { useQuery } from "@tanstack/react-query";
++import { useActiveBackend } from "#/contexts/active-backend-context";
++import { getSandboxSelectionOptions } from "#/api/cloud/sandbox-template-service.api";
++import { SANDBOX_TEMPLATES_QUERY_KEYS } from "./query-keys";
++
++export function useSandboxTemplates() {
++  const { backend, orgId } = useActiveBackend();
++  return useQuery({
++    // Resolve credentials at execution time; keep only scope IDs in the cache.
++    queryKey: [...SANDBOX_TEMPLATES_QUERY_KEYS.all, backend.id, orgId] as const,
++    queryFn: ({ queryKey }) =>
++      getSandboxSelectionOptions(queryKey[1], queryKey[2]!),
++    enabled: backend.kind === "cloud" && Boolean(orgId),
++    staleTime: 0,
++    refetchOnWindowFocus: true,
++    retry: false,
++    // Older backends have no selector endpoint; keep their launch UI unchanged.
++    meta: { disableToast: true },
++  });
++}
+diff --git a/src/i18n/translation.json b/src/i18n/translation.json
+--- a/src/i18n/translation.json
++++ b/src/i18n/translation.json
+@@ -1,4 +1,6 @@
+ {
++  "HOME$SANDBOX_LABEL": {"en": "Sandbox Spec"},
++  "HOME$SANDBOX_DEFAULT": {"en": "Default"},
+   "COMMON$PAUSE_RUNTIME": {
+     "en": "Pause"
+   },
