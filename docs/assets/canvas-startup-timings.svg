@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="490" viewBox="0 0 880 490" role="img" aria-labelledby="title desc">
+  <title id="title">Time to an editable Canvas chat</title>
+  <desc id="desc">E2B and Kubernetes measured in seconds. Existing sandbox median 0.85 and 0.94. Warm E2B 7.08 to 7.16, with Kubernetes editable by 9.72 and 12.09. Cold E2B 9.44 and Kubernetes readiness window 26.46 to 30.08. Reopen a running chat 3.48 and 2.60. See the benchmark notes for sampling and deployment differences.</desc>
+<rect x="0" y="0" width="880" height="490" fill="#fbfaf7" rx="12"/>
+<style>
+  text {font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: #1c2635;}
+  .title {font-weight: 720; font-size: 29px;}
+  .label {font-weight: 660; font-size: 16px;}
+  .muted {font-size: 13px; fill: #4d5b6c;}
+  .provider {font-size: 14px; font-weight: 640;}
+  .value {font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 660;}
+</style>
+<text x="32" y="51" class="title" >Time to an editable Canvas chat</text>
+<text x="32" y="77" class="muted" >E2B and Kubernetes demo measurements · elapsed seconds</text>
+<line x1="350" y1="114" x2="350" y2="424" stroke="#dddfe1" stroke-width="1" />
+<text x="350" y="105" class="muted" text-anchor="middle">0</text>
+<line x1="443.75" y1="114" x2="443.75" y2="424" stroke="#dddfe1" stroke-width="1" />
+<text x="443.75" y="105" class="muted" text-anchor="middle">8</text>
+<line x1="537.5" y1="114" x2="537.5" y2="424" stroke="#dddfe1" stroke-width="1" />
+<text x="537.5" y="105" class="muted" text-anchor="middle">16</text>
+<line x1="631.25" y1="114" x2="631.25" y2="424" stroke="#dddfe1" stroke-width="1" />
+<text x="631.25" y="105" class="muted" text-anchor="middle">24</text>
+<line x1="725" y1="114" x2="725" y2="424" stroke="#dddfe1" stroke-width="1" />
+<text x="725" y="105" class="muted" text-anchor="middle">32</text>
+<text x="32" y="131" class="label" >New chat on an existing sandbox</text>
+<text x="32" y="153" class="muted" >Prepared · 10 successes each</text>
+<text x="336" y="136" class="provider" text-anchor="end">E2B</text>
+<rect x="350" y="126" width="9.96094" height="10" fill="#a74422" rx="2"/>
+<text x="848" y="136" class="value" text-anchor="end">0.85 s</text>
+<text x="336" y="163" class="provider" text-anchor="end">Kubernetes</text>
+<rect x="350" y="153" width="11.0156" height="10" fill="#415e83" rx="2"/>
+<text x="848" y="163" class="value" text-anchor="end">0.94 s</text>
+<line x1="32" y1="195" x2="848" y2="195" stroke="#dddfe1" stroke-width="1" />
+<text x="32" y="212" class="label" >New chat on a warm sandbox</text>
+<text x="32" y="234" class="muted" >Two observations per provider</text>
+<text x="336" y="217" class="provider" text-anchor="end">E2B</text>
+<rect x="350" y="207" width="82.9688" height="10" fill="#a74422" rx="2"/>
+<line x1="432.969" y1="212" x2="433.906" y2="212" stroke="#a74422" stroke-width="2" />
+<line x1="432.969" y1="205" x2="432.969" y2="219" stroke="#a74422" stroke-width="1.5" />
+<line x1="433.906" y1="205" x2="433.906" y2="219" stroke="#a74422" stroke-width="1.5" />
+<text x="848" y="217" class="value" text-anchor="end">7.08–7.16 s</text>
+<text x="336" y="244" class="provider" text-anchor="end">Kubernetes</text>
+<line x1="350" y1="239" x2="491.68" y2="239" stroke="#415e83" stroke-width="2" stroke-dasharray="5 4"/>
+<circle cx="463.906" cy="239" r="4.5" fill="#fbfaf7" stroke="#415e83" stroke-width="2"/>
+<circle cx="491.68" cy="239" r="4.5" fill="#fbfaf7" stroke="#415e83" stroke-width="2"/>
+<text x="848" y="244" class="value" text-anchor="end">By 9.72 / 12.09 s</text>
+<line x1="32" y1="276" x2="848" y2="276" stroke="#dddfe1" stroke-width="1" />
+<text x="32" y="293" class="label" >New chat on a cold sandbox</text>
+<text x="32" y="315" class="muted" >One observation per provider</text>
+<text x="336" y="298" class="provider" text-anchor="end">E2B</text>
+<rect x="350" y="288" width="110.625" height="10" fill="#a74422" rx="2"/>
+<text x="848" y="298" class="value" text-anchor="end">9.44 s</text>
+<text x="336" y="325" class="provider" text-anchor="end">Kubernetes</text>
+<rect x="350" y="315" width="310.078" height="10" fill="#415e83" rx="2"/>
+<line x1="660.078" y1="320" x2="702.5" y2="320" stroke="#415e83" stroke-width="2" />
+<line x1="660.078" y1="313" x2="660.078" y2="327" stroke="#415e83" stroke-width="1.5" />
+<line x1="702.5" y1="313" x2="702.5" y2="327" stroke="#415e83" stroke-width="1.5" />
+<text x="848" y="325" class="value" text-anchor="end">26.46–30.08 s</text>
+<line x1="32" y1="357" x2="848" y2="357" stroke="#dddfe1" stroke-width="1" />
+<text x="32" y="374" class="label" >Reopen a running chat</text>
+<text x="32" y="396" class="muted" >One observation per provider</text>
+<text x="336" y="379" class="provider" text-anchor="end">E2B</text>
+<rect x="350" y="369" width="40.7812" height="10" fill="#a74422" rx="2"/>
+<text x="848" y="379" class="value" text-anchor="end">3.48 s</text>
+<text x="336" y="406" class="provider" text-anchor="end">Kubernetes</text>
+<rect x="350" y="396" width="30.4688" height="10" fill="#415e83" rx="2"/>
+<text x="848" y="406" class="value" text-anchor="end">2.60 s</text>
+<line x1="32" y1="440" x2="848" y2="440" stroke="#dddfe1" stroke-width="1" />
+<text x="32" y="461" class="muted" >Kubernetes warm points are upper bounds. The cold interval brackets readiness.</text>
+<text x="32" y="480" class="muted" >Runs used different deployments or builds. See the benchmark notes for details.</text>
+</svg>

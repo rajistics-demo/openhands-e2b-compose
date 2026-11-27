@@ -13,6 +13,12 @@ sandbox binding.
   [qualify provider lifecycle](docs/SETUP.md#qualify-native-e2b-lifecycle).
 - [Read the interfaces and design choices](docs/INTERFACES.md).
 
+## Canvas startup timings
+
+![Time to editable Canvas chat for E2B and Kubernetes across existing, warm, cold, and running reopen paths](docs/assets/canvas-startup-timings.svg)
+
+[Timing table, sample counts, and measurement notes](docs/DEMO.md#timing-the-three-startup-paths)
+
 ## Fork into a new VM
 
 In Canvas, open an idle, running E2B conversation. Next to the conversation
@@ -50,3 +56,35 @@ Enterprise uses the same Sandbox Spec ID contract for both providers. In the
 single-template quickstart, `E2B_TEMPLATE` is both the spec ID and template
 reference. The [profiles overlay](docs/SETUP.md#configure-small-and-large-e2b-profiles)
 maps stable spec IDs to separately configured templates.
+
+## How the integration works
+
+```mermaid
+flowchart LR
+  C["Canvas<br/>Sandbox Spec picker"]
+  subgraph P["Enterprise control plane"]
+    R["Provider router<br/>Resolves the spec on launch"]
+    S[("Ownership and chat history<br/>Saved provider binding")]
+    A["Enterprise event API"]
+    R -->|"Save and resolve sandbox binding"| S
+    A --> S
+  end
+  E["E2B API<br/>Template, create, pause, resume"]
+  V["E2B VM<br/>Agent Server and workspace"]
+  K["Kubernetes controller"]
+  C --> R
+  R -->|"Manage E2B lifecycle"| E
+  E -->|"Boot prepared template"| V
+  R -->|"Initialize Agent Server"| V
+  V -->|"Send conversation events"| A
+  R -->|"Kubernetes spec"| K
+```
+
+| Integration choice | What it gives us | What it costs |
+| --- | --- | --- |
+| Prepared E2B template with deferred Agent Server init | Provision a VM with tools ready, then issue a session key when claimed | Maintain the template build and match it to Enterprise's initialization contract |
+| Warm VMs scoped to a Sandbox Spec | Skip allocation when matching inventory is ready | Reserve provider capacity and refill the pool. A miss starts a new VM |
+| Provider pause and a separate workspace copy for fork | Reopen the same VM or branch an existing chat and its files into an independent VM | Fork needs a spare slot and copies a bounded workspace. Recovery after expiry needs a durable checkpoint |
+| E2B port URLs, with an optional authenticated preview gateway | Connect Canvas directly to Agent Server or enforce preview access at the app edge | The gateway needs its own ingress configuration. Verify that private previews are also closed on the provider URL |
+
+[Interfaces and alternatives](docs/INTERFACES.md)
