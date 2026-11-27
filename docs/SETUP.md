@@ -204,3 +204,41 @@ This keeps the provider ingress header and browser credentials out of the
 preview application. The pilot serves HTTP previews with a 48 KiB request
 limit and a 2 MiB response limit. Existing publicly reachable sandboxes should
 expire or be retired before switching this fixture to private ingress.
+
+## Enable E2B fork
+
+Use a routed Enterprise candidate with the E2B and Kubernetes Sandbox
+Spec service, the workspace reuse capability, and Agent Server 1.64.1.
+The live demo used the Sandbox Spec catalog candidate based on Enterprise
+change #1560 and Canvas 1.35.0 with the provider Pause and E2B fork patches.
+The single-provider Enterprise 1.88.0 quickstart uses a different backend
+interface.
+
+From this repository, generate the overlay using a local copy of the
+matching Enterprise candidate source. Use the effective source files for
+the app and worker, including any existing candidate overlays.
+
+```sh
+export E2B_FORK_OVERLAY_DIR=/absolute/path/to/generated/e2b-fork
+python3 compose/fork-overlay/prepare.py /absolute/path/to/enterprise-candidate "$E2B_FORK_OVERLAY_DIR"
+```
+
+The generator leaves the input untouched and checks that the expected
+integration points are present before writing the output. Append
+`compose/docker-compose.e2b-fork.yml` to the candidate's Compose file
+list, after overrides for the app and worker. Set `E2B_FORK_ORG_ID` to the
+allowed organization's UUID. Set `E2B_FORK_MODEL_URL` to the candidate's
+approved HTTPS demo model URL, for example
+`https://openhands.example.com/live-model/v1`. For DeepSeek V4.1 Flash,
+the candidate's existing model binding hook must issue a separate
+credential for each new VM. The scripted GPT-4o-mini fixture uses
+`/synthetic-model/v1` on the same origin. Use whichever of those two
+model paths your candidate already serves.
+
+Render the combined files with `docker compose config --quiet` before
+recreating the app and worker. Build Canvas with the
+[optional fork patch](../canvas/README.md). Only owned, running E2B chats
+with a supported model and a bounded workspace under `/workspace/project`
+advertise fork support. The demo copies one workspace and requires room
+for both the source and the fork. Follow the
+[Canvas walkthrough](DEMO.md#fork-an-e2b-chat) to verify the result.

@@ -1,0 +1,28 @@
+@router.post('/{conversation_id}/runtime/fork')
+async def demo_fork_runtime_endpoint(
+    conversation_id: UUID,
+    user_context: UserContext = user_context_dependency,
+    app_conversation_info_service: AppConversationInfoService = app_conversation_info_service_dependency,
+    app_conversation_service: AppConversationService = app_conversation_service_dependency,
+    sandbox_service: SandboxService = sandbox_service_dependency,
+    db_session: AsyncSession = db_session_dependency,
+    httpx_client: httpx.AsyncClient = httpx_client_dependency,
+) -> JSONResponse:
+    from openhands.app_server.app_conversation.demo_runtime_fork import ForkConflict, fork_runtime
+    from openhands.app_server.errors import SandboxError
+
+    try:
+        result = await fork_runtime(
+            conversation_id, user_context, app_conversation_info_service,
+            app_conversation_service, sandbox_service, db_session, httpx_client,
+        )
+    except PermissionError as exc:
+        return JSONResponse(status_code=403, content={'error': str(exc)})
+    except (ForkConflict, SandboxError) as exc:
+        return JSONResponse(status_code=409, content={'error': str(exc)})
+    except TimeoutError:
+        return JSONResponse(status_code=504, content={'error': 'Timed out preparing the fork'})
+    except Exception:
+        logger.exception('E2B demo fork failed')
+        return JSONResponse(status_code=502, content={'error': 'Could not complete the E2B fork'})
+    return JSONResponse(status_code=201, content={'id': result.id.hex})

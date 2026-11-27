@@ -1,0 +1,18 @@
+x-e2b-fork: &e2b-fork
+  environment:
+    DEMO_E2B_FORK: 'true'
+    DEMO_MODEL_ORG_ID: ${E2B_FORK_ORG_ID:?Set the fork-enabled organization UUID}
+    DEMO_MODEL_RELAY_URL: ${E2B_FORK_MODEL_URL:?Set the candidate demo model URL}
+  volumes:
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/app_conversation/app_conversation_models.py:/app/openhands/app_server/app_conversation/app_conversation_models.py:ro"
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/app_conversation/app_conversation_router.py:/app/openhands/app_server/app_conversation/app_conversation_router.py:ro"
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/app_conversation/live_status_app_conversation_service.py:/app/openhands/app_server/app_conversation/live_status_app_conversation_service.py:ro"
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/app_conversation/demo_runtime_fork.py:/app/openhands/app_server/app_conversation/demo_runtime_fork.py:ro"
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/app_conversation/demo_fork_workspace.py:/app/openhands/app_server/app_conversation/demo_fork_workspace.py:ro"
+    - "${E2B_FORK_OVERLAY_DIR:?Set the generated overlay directory}/openhands/app_server/sandbox/e2b_sandbox_service.py:/app/openhands/app_server/sandbox/e2b_sandbox_service.py:ro"
+
+services:
+  app:
+    <<: *e2b-fork
+  worker:
+    <<: *e2b-fork

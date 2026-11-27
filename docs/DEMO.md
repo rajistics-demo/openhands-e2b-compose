@@ -35,6 +35,31 @@ warning. Check the provider state before concluding that the workspace
 disappeared. The mixed-provider demo supports same-VM resume. Recovery
 after deletion requires the separate checkpoint candidate below.
 
+## Fork an E2B chat
+
+Open an idle, running E2B chat with a single workspace. In the conversation
+header, choose **Workspace options → Fork into a new VM**. The deployment
+needs a spare E2B slot. The fork gets a new conversation and VM on the
+source Sandbox Spec. On Kubernetes, the menu omits the action and the fork
+endpoint rejects the request.
+
+For a clean demo, start a chat in a synthetic Git repo, complete a turn,
+then edit one tracked file and create one untracked file. Fork, check that
+the source prompt is visible, and run `git status --short` to confirm both
+changes. Edit a file in the fork and check the original chat still has
+its original VM and files.
+
+| Milestone from clicking Fork | Live AWS Compose demo |
+| --- | ---: |
+| Fork API returned | 8.74 s |
+| Original history visible in the fork | 8.77 s |
+| Fork composer editable | 8.78 s |
+
+One E2B Standard browser run verified the history, tracked edit, untracked
+file, and write isolation. The test used a small workspace. See
+[Enable E2B fork](SETUP.md#enable-e2b-fork) for the backend overlay and
+[Canvas build instructions](../canvas/README.md).
+
 ## Show a real coding task and an automation
 
 Select the same approved model profile on both providers. In the smoke
@@ -78,13 +103,9 @@ These small samples describe the demo paths.
 
 ## Separate E2B lifecycle prototype
 
-The [pinned Canvas overlay](../canvas/README.md) demonstrates
-authenticated previews and can expose **Fork into a new VM** with a
-compatible Enterprise candidate. A fork uses its own VM and independent
-files while carrying the source chat history and workspace. Keep the
-source active and confirm its sandbox binding and files after the fork.
-[Native lifecycle validation](SETUP.md#qualify-native-e2b-lifecycle)
-exercises independent provider forks as a separate test.
+The [pinned Canvas overlay](../canvas/README.md) also supports the
+authenticated preview prototype. [Native lifecycle validation](SETUP.md#qualify-native-e2b-lifecycle)
+exercises independent provider forks through the E2B SDK.
 
 In the expiry-recovery prototype, an automatic checkpoint saved a
 synthetic repo before the original VM expired. A read against the

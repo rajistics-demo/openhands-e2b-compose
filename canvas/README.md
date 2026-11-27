@@ -35,7 +35,9 @@ provides E2B workspace actions. The picker patch adds the home composer
 control. It requires the Enterprise `enable_sandbox_selector` feature flag,
 `/api/v1/sandbox-specs/search`, and the `sandbox_spec_id` launch field.
 Use the matching Enterprise router for the mixed-provider walkthrough in
-the [demo guide](../docs/DEMO.md).
+the [demo guide](../docs/DEMO.md). The
+[Enterprise fork overlay](../docs/SETUP.md#enable-e2b-fork) enables the
+backend capability for eligible E2B conversations.
 
 Use your actual isolated HTTPS origin in the build. Set
 `AGENT_CANVAS_LOCK_TO_CLOUD` to the same origin on the stock Canvas service.

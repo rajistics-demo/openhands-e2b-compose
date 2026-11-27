@@ -9,6 +9,7 @@
     "native_lifecycle": "November 26 AWS Compose runner verified E2B same-VM memory resume and two independent native forks. All three sandboxes were verified terminated. See the provider probe results in docs/SETUP.md.",
     "canvas": "The November 26 isolated AWS Compose run verified Canvas Pause and resume through authenticated previews, and fork to an independent E2B VM with retained conversation history and dirty Git files. It checked anonymous, cross-sandbox, and wrong-origin denial. See the setup timings.",
     "expiry": "November 26 isolated AWS Compose pilot verified automatic checkpoints, provider-confirmed expiry, and Canvas recovery of the same conversation on a different E2B VM. Restored chat, dirty Git files, live preview, and a native follow-up tool turn passed with the synthetic model fixture. Requires the opt-in Enterprise and Canvas candidate builds.",
-    "mixed_provider_demo": "The isolated Enterprise Compose candidate verified the Sandbox Spec picker, provider binding, shared workspace starts, and a matching coding task on E2B and Kubernetes. See docs/DEMO.md for scope and timing."
+    "mixed_provider_demo": "The isolated Enterprise Compose candidate verified the Sandbox Spec picker, provider binding, shared workspace starts, and a matching coding task on E2B and Kubernetes. See docs/DEMO.md for scope and timing.",
+    "mixed_provider_fork": "An AWS Compose browser run opened a fork on a distinct E2B VM with chat history, an uncommitted tracked edit, and an untracked file. The source stayed running and independent. History was visible at 8.77 s and the composer was editable at 8.78 s. The Kubernetes browser and API controls rejected fork."
   }
 }
